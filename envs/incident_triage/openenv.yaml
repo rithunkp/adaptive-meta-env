@@ -1,0 +1,9 @@
+spec_version: 1
+name: incident_triage
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+variables:
+  INCIDENT_TRIAGE_ECI: "1"
+  INCIDENT_TRIAGE_MAX_STEPS: "20"

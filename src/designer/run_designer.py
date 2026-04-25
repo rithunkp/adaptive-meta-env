@@ -45,7 +45,7 @@ log = logging.getLogger("open-council")
 
 @dataclass(frozen=True)
 class ModelConfig:
-    architect: str = "meta-llama/Llama-3.1-405B-FP8"
+    architect: str = "deepseek-ai/DeepSeek-V3"
     coder: str = "deepseek-ai/DeepSeek-V3"
     critic: str = "Qwen/Qwen2.5-72B-Instruct"
     temperature: float = 0.2
