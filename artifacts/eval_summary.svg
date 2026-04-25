@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420">
+<rect width="100%" height="100%" fill="#f8fafc" />
+<text x="80" y="34" font-family="Arial" font-size="22" font-weight="700" fill="#111827">Baseline vs Trained-Style Solver Metrics</text>
+<line x1="70" y1="320" x2="880" y2="320" stroke="#475569" stroke-width="1" />
+<line x1="70" y1="60" x2="70" y2="320" stroke="#475569" stroke-width="1" />
+<rect x="80" y="221" width="38" height="99" fill="#64748b" />
+<title>Baseline Reward: 0.384</title>
+
+<rect x="126" y="63" width="38" height="257" fill="#0f766e" />
+<title>Trained-style Reward: 0.992</title>
+
+<text x="86" y="348" font-family="Arial" font-size="13" fill="#111827">Reward</text>
+<rect x="210" y="320" width="38" height="0" fill="#64748b" />
+<title>Baseline Solve: 0.000</title>
+
+<rect x="256" y="60" width="38" height="260" fill="#0f766e" />
+<title>Trained-style Solve: 1.000</title>
+
+<text x="216" y="348" font-family="Arial" font-size="13" fill="#111827">Solve</text>
+<rect x="340" y="268" width="38" height="52" fill="#64748b" />
+<title>Baseline Correct: 0.200</title>
+
+<rect x="386" y="190" width="38" height="130" fill="#0f766e" />
+<title>Trained-style Correct: 0.500</title>
+
+<text x="346" y="348" font-family="Arial" font-size="13" fill="#111827">Correct</text>
+<rect x="470" y="320" width="38" height="0" fill="#64748b" />
+<title>Baseline Efficient: 0.000</title>
+
+<rect x="516" y="242" width="38" height="78" fill="#0f766e" />
+<title>Trained-style Efficient: 0.300</title>
+
+<text x="476" y="348" font-family="Arial" font-size="13" fill="#111827">Efficient</text>
+<rect x="600" y="281" width="38" height="39" fill="#64748b" />
+<title>Baseline Quality: 0.150</title>
+
+<rect x="646" y="281" width="38" height="39" fill="#0f766e" />
+<title>Trained-style Quality: 0.150</title>
+
+<text x="606" y="348" font-family="Arial" font-size="13" fill="#111827">Quality</text>
+<rect x="730" y="312" width="38" height="8" fill="#64748b" />
+<title>Baseline Calib: 0.034</title>
+
+<rect x="776" y="310" width="38" height="10" fill="#0f766e" />
+<title>Trained-style Calib: 0.042</title>
+
+<text x="736" y="348" font-family="Arial" font-size="13" fill="#111827">Calib</text>
+<rect x="80" y="374" width="18" height="18" fill="#64748b" />
+<text x="106" y="388" font-family="Arial" font-size="14" fill="#111827">baseline</text>
+<rect x="190" y="374" width="18" height="18" fill="#0f766e" />
+<text x="216" y="388" font-family="Arial" font-size="14" fill="#111827">trained-style</text>
+<text x="26" y="64" font-family="Arial" font-size="12" fill="#475569">1.0</text>
+<text x="26" y="320" font-family="Arial" font-size="12" fill="#475569">0.0</text>
+</svg>
