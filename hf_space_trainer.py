@@ -390,6 +390,8 @@ def main() -> None:
     trainer.train()
 
     Path(cfg.final_model_dir).mkdir(parents=True, exist_ok=True)
+    if getattr(trainer, "tokenizer", None) is not None:
+        trainer.tokenizer.save_pretrained(cfg.final_model_dir)
     trainer.model.save_pretrained(cfg.final_model_dir)
     print(f"Done. Model saved to {cfg.final_model_dir}")
 
