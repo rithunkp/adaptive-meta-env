@@ -17,6 +17,7 @@ Improvements over v1:
 
 import hashlib
 import importlib.util
+import json
 import os
 import random
 import re
@@ -345,6 +346,79 @@ class StepCounterCallback(TrainerCallback):
         return control
 
 
+def export_training_artifacts(trainer, cfg: TrainConfig) -> None:
+    """Write trainer log history and lightweight reward/loss plots."""
+    output_dir = Path(cfg.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    history_path = output_dir / "trainer_log_history.jsonl"
+
+    log_history = getattr(getattr(trainer, "state", None), "log_history", []) or []
+    with history_path.open("w", encoding="utf-8") as handle:
+        for row in log_history:
+            if isinstance(row, dict):
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        print(f"Saved log history to {history_path} (matplotlib unavailable for plots).")
+        return
+
+    rows = [row for row in log_history if isinstance(row, dict)]
+    if not rows:
+        print(f"Saved empty log history to {history_path}.")
+        return
+
+    steps: list[float] = []
+    losses: list[float] = []
+    rewards: list[float] = []
+    for row in rows:
+        step = row.get("step")
+        if step is None:
+            continue
+        try:
+            step_val = float(step)
+        except (TypeError, ValueError):
+            continue
+
+        if "loss" in row:
+            try:
+                losses.append(float(row["loss"]))
+                steps.append(step_val)
+            except (TypeError, ValueError):
+                pass
+        if "reward" in row:
+            try:
+                rewards.append(float(row["reward"]))
+            except (TypeError, ValueError):
+                pass
+
+    if steps and losses:
+        plt.figure(figsize=(10, 5))
+        plt.plot(steps[: len(losses)], losses, linewidth=2)
+        plt.title("Training Loss vs Step")
+        plt.xlabel("Step")
+        plt.ylabel("Loss")
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(output_dir / "loss_vs_step.png", dpi=150)
+        plt.close()
+
+    if rewards:
+        reward_steps = steps[: len(rewards)] if steps else list(range(1, len(rewards) + 1))
+        plt.figure(figsize=(10, 5))
+        plt.plot(reward_steps, rewards, linewidth=2)
+        plt.title("Training Reward vs Step")
+        plt.xlabel("Step")
+        plt.ylabel("Reward")
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(output_dir / "reward_vs_step.png", dpi=150)
+        plt.close()
+
+    print(f"Saved training artifacts under {output_dir}")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -391,6 +465,7 @@ def main() -> None:
 
     print("Training started.")
     trainer.train()
+    export_training_artifacts(trainer, cfg)
 
     Path(cfg.final_model_dir).mkdir(parents=True, exist_ok=True)
     if getattr(trainer, "tokenizer", None) is not None:

@@ -49,7 +49,7 @@ The penalty term specifically catches agents that exploit the reward without sol
 ## Links
 
 - **Hugging Face Space**: [itzrick/openadapt](https://huggingface.co/spaces/itzrick/openadapt)
-- **Colab notebook**: [openadapt-training-colab](https://colab.research.google.com/drive/1dCvCxEbe2DGjmjxTTswYko4A7Kp0o9ST?usp=sharing)
+- **Colab notebook**: [openadapt-training-colab](https://colab.research.google.com/drive/1Wp53Y7pcFkIxUhb4hpRPvSE9U5wToygB?usp=sharing)
 - **Training WanDB logs**: [openadapt-training-logs](https://wandb.ai/shahirabdulnazar2003-/openenv-grpo/runs/60kg8y2c)
 - **Blog**: [blog.md](artifacts/writeup/blog.md)
 
