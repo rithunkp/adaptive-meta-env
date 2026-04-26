@@ -62,16 +62,24 @@ Tested on the **Incident Triage** environment (agent diagnoses degraded services
 | Avg Reward | 0.424 | **0.895** |
 | Solve Rate | 42.4% | **89.5%** |
 
-### Plots
+### Training Results Visualization
 
-![Reward vs Step](artifacts/plots/reward_vs_step.png)
+#### Reward Progression
+![Reward vs Step](/artifacts/plots/reward_vs_step.png)
 *Reward progression across training episodes. Baseline flat at ~0.42, trained policy climbs to ~0.90.*
 
-![Loss vs Step](artifacts/plots/loss_vs_step.png)
+#### Loss Curve
+![Loss vs Step](/artifacts/plots/loss_vs_step.png)
 *Proxy loss (1 − reward) across episodes.*
 
-![Baseline vs Trained](artifacts/plots/baseline_vs_trained.png)
+#### Baseline vs Trained Comparison
+![Baseline vs Trained](/artifacts/plots/baseline_vs_trained.png)
 *Side-by-side comparison of all metrics.*
+
+#### Latest Space Training Results
+![Space Reward vs Step](/artifacts/plots/space_reward_vs_step.png)
+![Space ECI Progression](/artifacts/plots/space_eci_vs_step.png)
+![Space Baseline vs Trained](/artifacts/plots/space_baseline_vs_trained.png)
 
 ## Reproducible Commands
 
