@@ -4,11 +4,7 @@
 
 ---
 
-So the premise of this hackathon was: build an environment for training LLMs using OpenEnv.
-
-most teams picked a task. customer support. games. code review. cool.
-
-we picked a different question: what if the AI made the environment itself?
+So the premise of this hackathon was: build an environment for training LLMs using OpenEnv. we picked a different question: what if the AI made the environment itself?
 
 ## The problem with static environments
 
@@ -78,6 +74,68 @@ to demo this we ran the incident triage environment — agent sees service alert
 - rollout: prompt → model generation → `env.step()` → verifier reward → policy update
 - optimizer: AdamW, lr = `5e-6`, linear warmup over 50 steps
 - episodes: 40 (local benchmark harness); extended run in W&B smoke test
+
+
+## how we trained causal reasoning, not just pattern matching
+
+this is the part most people skip over in RL writeups. the reward function isn't just measuring correctness — it's actively shaping *how* the model reasons.
+
+three things in the training code work together to do this.
+
+**1. structured output enforcement via `format_reward_func`**
+
+```python
+def format_reward_func(prompts, completions, **kwargs):
+    return [0.1 if ("<reasoning>" in c and "<action>" in c) else 0.0
+            for c in completions]
+```
+
+every completion that doesn't have both a `<reasoning>` block *and* an `<action>` block gets zero format reward. the prompt template reinforces this:
+
+```
+Respond using:
+<reasoning>
+[your step-by-step analysis]
+</reasoning>
+<action>
+[your concrete remediation action]
+</action>
+```
+
+this isn't cosmetic. forcing the model to externalise reasoning before committing to an action is what separates causal diagnosis from keyword retrieval. the model has to build a chain before it can act.
+
+**2. full-completion keyword scoring in `reward_func`**
+
+```python
+text_to_check = completion.lower()  # full completion, not just the action tag
+
+keywords = ENV_KEYWORDS.get(env_class.__name__, [])
+hits = sum(1 for kw in keywords if kw in text_to_check)
+keyword_reward = min(hits / 2, 0.5)  # up to 0.5 for 2+ domain keywords
+```
+
+the key design decision here is `text_to_check = completion.lower()` — the entire completion, reasoning block included, is checked for domain-relevant terms. `ENV_KEYWORDS` are deliberately causal vocabulary:
+
+```python
+ENV_KEYWORDS = {
+    "ExtremeSREEnv":  ["bgp", "route", "prefix", "peering", "as-path", ...],
+    "DBDeadlockEnv":  ["deadlock", "transaction", "lock", "rollback", ...],
+    "MemoryLeakEnv":  ["heap", "gc", "oom", "allocation", "dump", ...],
+}
+```
+
+these aren't surface-level words — they're the terms an engineer would use when *tracing causality* through a system. a model that just pattern-matches "network outage → restart service" never mentions bgp or as-path. a model reasoning about *why* the outage happened does. the reward differentiates them.
+
+**3. combined signal with `max(keyword_reward, env_reward)`**
+
+```python
+reward = max(keyword_reward, env_reward)
+```
+
+the final reward takes the maximum of the keyword partial credit and the environment's binary step reward. this prevents a failure mode where the model produces correct causal reasoning in the `<reasoning>` block but fails to format the `<action>` tag correctly — and gets zero for it. the model gets credit for sound reasoning even if action parsing fails, which keeps the gradient signal alive early in training when formatting is still unstable.
+
+the combined effect: the policy is pushed toward completions that (a) have explicit reasoning structure, (b) use domain-causal vocabulary in that reasoning, and (c) commit to a concrete action. none of these three alone is sufficient — you need all three to max the reward. that's what makes it causal reasoning training rather than answer memorisation.
+
 
 **results — local benchmark artifacts:**
 
