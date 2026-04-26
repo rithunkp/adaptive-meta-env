@@ -64,22 +64,23 @@ Tested on the **Incident Triage** environment (agent diagnoses degraded services
 
 ### Training Results Visualization
 
-#### Reward Progression
-![Reward vs Step](/artifacts/plots/reward_vs_step.png)
+#### Initial Model Training
+![Reward vs Step](/artifacts/initial%20model/reward_vs_step.png)
 *Reward progression across training episodes. Baseline flat at ~0.42, trained policy climbs to ~0.90.*
 
-#### Loss Curve
-![Loss vs Step](/artifacts/plots/loss_vs_step.png)
+![Loss vs Step](/artifacts/initial%20model/loss_vs_step.png)
 *Proxy loss (1 − reward) across episodes.*
 
-#### Baseline vs Trained Comparison
-![Baseline vs Trained](/artifacts/plots/baseline_vs_trained.png)
+![Baseline vs Trained](/artifacts/initial%20model/baseline_vs_trained.png)
 *Side-by-side comparison of all metrics.*
 
-#### Latest Space Training Results
-![Space Reward vs Step](/artifacts/plots/space_reward_vs_step.png)
-![Space ECI Progression](/artifacts/plots/space_eci_vs_step.png)
-![Space Baseline vs Trained](/artifacts/plots/space_baseline_vs_trained.png)
+#### Latest Hugging Face Space Training
+
+![Space Reward vs Step](/artifacts/hf%20space/space_reward_vs_step.png)
+
+![Space ECI Progression](/artifacts/hf%20space/space_eci_vs_step.png)
+
+![Space Baseline vs Trained](/artifacts/hf%20space/space_baseline_vs_trained.png)
 
 ## Reproducible Commands
 
