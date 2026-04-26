@@ -1,5 +1,6 @@
 """Typed models for the incident triage OpenEnv environment."""
 
+import json
 from typing import Any
 
 from openenv.core.env_server.types import Action, Observation, State
@@ -22,6 +23,17 @@ class IncidentTriageAction(Action):
             return {}
         if isinstance(value, dict):
             return value
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return {}
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("params string must be valid JSON") from exc
+            if isinstance(parsed, dict):
+                return parsed
+            raise ValueError("params JSON must decode to an object")
         raise TypeError("params must be a dictionary")
 
 

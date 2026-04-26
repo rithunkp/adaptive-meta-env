@@ -1,3 +1,13 @@
+---
+title: openadapt
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Incident Triage OpenEnv
 
 OpenEnv-compatible incident triage environment where an agent diagnoses a degraded production service from partial logs, metrics, runbook snippets, and ECI-scaled ambiguity.

@@ -52,6 +52,27 @@ class OpenEnvIncidentTriageTests(unittest.TestCase):
         self.assertEqual(obs.reward, 0.0)
         self.assertLess(obs.metadata["reward_breakdown"]["penalty"], 0.0)
 
+    def test_string_params_are_parsed(self):
+        env = IncidentTriageEnvironment(eci=1, max_steps=20)
+        env.reset(seed=3)
+        truth = env.state.task["ground_truth"]
+        payload = json.dumps(
+            {
+                **truth,
+                "evidence": "payment gateway timeout in logs",
+            }
+        )
+        obs = env.step(
+            IncidentTriageAction(
+                action_type="diagnose_incident",
+                params=payload,
+                confidence=0.8,
+                reasoning="Signals align with dependency timeout.",
+            )
+        )
+        self.assertGreaterEqual(obs.reward, 0.0)
+        self.assertIsInstance(obs.metadata["reward_breakdown"], dict)
+
 
 if __name__ == "__main__":
     unittest.main()
