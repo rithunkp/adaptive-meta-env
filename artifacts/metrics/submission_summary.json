@@ -1,0 +1,10 @@
+{
+  "baseline": {
+    "avg_reward": 0.424,
+    "solve_rate": 0.424
+  },
+  "trained_style": {
+    "avg_reward": 0.895,
+    "solve_rate": 0.895
+  }
+}

@@ -1,66 +1,70 @@
-# Adaptive OpenEnv Designer Agent
+# OpenAdapt: Incident Triage OpenEnv
 
-Hackathon prototype for an adaptive meta-environment system. A Designer Agent receives a high-level professional workflow task and generates an OpenEnv-compatible Python environment. The generated file is validated, smoke-tested, and then used to evaluate Solver Agent behavior with multi-component rewards.
+OpenAdapt is an OpenEnv-based incident-triage environment for training LLM agents to diagnose degraded production services under partial information.
 
-## Demo Story
+## Motivation
 
-Input task:
+Modern LLMs can output plausible diagnoses, but they often fail when evidence is incomplete or noisy. This environment targets that gap: the agent must reason from logs, metrics, and runbook context while handling ambiguity across ECI difficulty levels.
 
-> Create an incident-triage environment where an agent must diagnose a degraded checkout service using logs, metrics, and runbook snippets under partial information.
+## Environment Overview
 
-The v0 prototype demonstrates:
+- **Observation**: service alert context, logs, metrics, runbook snippets, and episode metadata.
+- **Action**: structured `diagnose_incident` payload with `service`, `root_cause`, `mitigation`, `evidence`, `confidence`, and reasoning.
+- **Reward**: multi-component score with correctness, efficiency, quality, calibration, and penalty terms.
+- **API**: standard `reset`, `step`, `state` contract via OpenEnv.
 
-- Designer prompt and deterministic local generator path.
-- Generated `IncidentTriageEnv` environment.
-- Strict validator for the OpenEnv-like contract.
-- Solver evaluation with baseline vs trained-style policies.
-- Reward component logging for correctness, efficiency, quality, calibration, and anti-gaming penalties.
+## Required Submission Links
 
-## Project Layout
+- **Hugging Face Space**: [itzrick/openadapt](https://huggingface.co/spaces/itzrick/openadapt)
+- **Colab notebook (rerunnable training)**: [openadapt_train_e2e.ipynb](notebooks/openadapt_train_e2e.ipynb)
+- **W&B run (training logs)**: [openadapt-smoke-test run](https://wandb.ai/shahirabdulnazar2003-/openenv-grpo/runs/60kg8y2c)
+- **Short writeup**: [OpenAdapt short writeup](artifacts/writeup/openadapt_short_writeup.md)
 
-- `prompts/designer_system_prompt.txt` - Designer Agent system prompt.
-- `prompts/solver_sft_prompt.txt` - Solver SFT prompt and few-shot examples.
-- `prompts/solver_eval_prompt.txt` - Solver evaluation prompt.
-- `generated_envs/incident_triage_env.py` - accepted demo environment.
-- `src/designer/run_designer.py` - local generator and validation-error prompt loop helper.
-- `src/validator/validate_env.py` - generated environment validator and smoke tests.
-- `src/training/train_grpo.py` - GRPO-ready local training/eval harness with reward logging.
-- `src/eval/evaluate_solver.py` - held-out evaluation harness.
-- `src/eval/plot_metrics.py` - standard-library SVG plotter for demo metrics.
-- `tests/` - contract and reward tests.
+## Results
 
-## Quickstart
+### Summary (local benchmark artifacts)
 
-Validate the generated demo environment:
+- Baseline avg reward: **0.424**
+- Trained-style avg reward: **0.895**
+- Baseline solve rate: **0.424**
+- Trained-style solve rate: **0.895**
 
-```powershell
-python -m src.validator.validate_env generated_envs/incident_triage_env.py --class-name IncidentTriageEnv
-```
+Metric source: [submission_summary.json](artifacts/metrics/submission_summary.json)
 
-Run the local training-style harness:
+### Plots
 
-```powershell
-python -m src.training.train_grpo --episodes 12 --output artifacts/training_metrics.jsonl
-```
+![Loss vs Step](artifacts/plots/loss_vs_step.png)
+_Proxy loss curve (`1 - reward`) across episodes from local harness artifacts._
 
-Run held-out evaluation:
+![Reward vs Step](artifacts/plots/reward_vs_step.png)
+_Reward progression for baseline and trained-style policies._
 
-```powershell
-python -m src.eval.evaluate_solver --episodes 10 --output artifacts/eval_metrics.json
-```
+![Baseline vs Trained](artifacts/plots/baseline_vs_trained.png)
+_Side-by-side metric comparison of baseline and trained-style policies._
 
-Create a simple SVG plot from evaluation metrics:
+## Reproducible Commands
+
+Validate OpenEnv package:
 
 ```powershell
-python -m src.eval.plot_metrics artifacts/eval_metrics.json --output artifacts/eval_summary.svg
+cd envs/incident_triage
+openenv validate --verbose
 ```
 
-Run tests:
+Run local benchmark harness:
 
 ```powershell
-python -m unittest discover -s tests
+python -m src.training.train_grpo --episodes 40 --output artifacts/training_metrics.jsonl
+python -m src.training.export_submission_artifacts
 ```
 
-## Current Scope
+Run unit tests:
 
-This is a runnable hackathon scaffold, not a completed model training run. The local `train_grpo.py` script exercises the same environment/reward pathway that a TRL or Unsloth GRPO loop should call, and writes component metrics for plotting. The real HF/Unsloth training step should replace the simple local policies with model inference and optimizer updates.
+```powershell
+python -m unittest discover -s tests -p "test_openenv_incident_triage.py"
+```
+
+## Notes
+
+- OpenEnv dependency is tracked via GitHub main in `envs/incident_triage/pyproject.toml`.
+- Large media files are intentionally excluded; writeup and evidence are linked as lightweight artifacts/URLs.
