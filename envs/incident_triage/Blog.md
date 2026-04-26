@@ -91,14 +91,23 @@ to demo this we ran the incident triage environment — agent sees service alert
 | malformed action rate | 9.1% | 0.8% |
 
 
-![reward vs step](https://github.com/rithunkp/adaptive-meta-env/raw/main/artifacts/plots/reward_vs_step.png)
-*reward progression: baseline (dashed) vs trained policy across 40 episodes. shaded region = ±1σ over the episode batch.*
+#### Initial Model Training
+![Reward vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/reward_vs_step.png)
+*Reward progression across training episodes. Baseline flat at ~0.42, trained policy climbs to ~0.90.*
 
-![loss vs step](https://github.com/rithunkp/adaptive-meta-env/raw/main/artifacts/plots/loss_vs_step.png)
-*proxy loss (1 − reward) across episodes from local harness.*
+![Loss vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/loss_vs_step.png)
+*Proxy loss (1 − reward) across episodes.*
 
-![baseline vs trained](https://github.com/rithunkp/adaptive-meta-env/raw/main/artifacts/plots/baseline_vs_trained.png)
-*per-component reward breakdown: baseline vs trained across all five reward terms.*
+![Baseline vs Trained](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/baseline_vs_trained.png)
+*Side-by-side comparison of all metrics.*
+
+#### Latest Hugging Face Space Training
+
+![Space Reward vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_reward_vs_step.png)
+
+![Space ECI Progression](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_eci_vs_step.png)
+
+![Space Baseline vs Trained](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_baseline_vs_trained.png)
 
 ## links
 
