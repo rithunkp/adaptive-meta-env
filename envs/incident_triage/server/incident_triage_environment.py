@@ -4,6 +4,7 @@ import json
 import random
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -290,11 +291,19 @@ class IncidentTriageEnvironment(
 
     def get_metadata(self) -> EnvironmentMetadata:
         """Return OpenEnv metadata for UI and discovery."""
+        readme_content = None
+        readme_path = Path(__file__).resolve().parents[1] / "README.md"
+        if readme_path.exists():
+            try:
+                readme_content = readme_path.read_text(encoding="utf-8")
+            except Exception:
+                readme_content = None
         return EnvironmentMetadata(
             name="incident_triage",
             description="Diagnose production incidents from partial logs, metrics, and runbook context.",
             version="0.1.0",
             author="Adaptive OpenEnv Designer Agent",
+            readme_content=readme_content,
         )
 
     def _build_observation(
