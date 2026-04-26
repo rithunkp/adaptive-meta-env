@@ -17,6 +17,7 @@ Improvements over v1:
 
 import argparse
 import importlib.util
+import inspect
 import json
 import logging
 import os
@@ -237,6 +238,41 @@ def extract_action(raw_response: str) -> dict:
     raise ValueError(f"No extractable action found in model response: {raw_response!r}")
 
 
+def format_action_payload(action: dict) -> str:
+    """Render an action dict into the legacy tagged text format."""
+    return (
+        "<reasoning>\n"
+        "Action selected from model response.\n"
+        "</reasoning>\n"
+        "<action>\n"
+        f"{json.dumps(action, sort_keys=True)}\n"
+        "</action>"
+    )
+
+
+def env_expects_text_action(env: Any) -> bool:
+    """Best-effort check for environments that expect raw tagged text actions."""
+    try:
+        param = inspect.signature(env.step).parameters.get("action")
+    except (TypeError, ValueError):
+        return False
+    if param is None:
+        return False
+    annotation = param.annotation
+    if annotation is str:
+        return True
+    if isinstance(annotation, str):
+        return annotation.strip().lower() in {"str", "string"}
+    return False
+
+
+def step_env(env: Any, action: dict, raw_response: str) -> tuple[Any, float, bool, dict]:
+    """Step the env with a payload shape that matches its action contract."""
+    if env_expects_text_action(env):
+        return env.step(raw_response)
+    return env.step(action)
+
+
 # ---------------------------------------------------------------------------
 # Environment loader
 # ---------------------------------------------------------------------------
@@ -292,18 +328,18 @@ def get_model_action(
     model: str,
     obs: dict,
     label: str = "",
-) -> dict:
+) -> tuple[dict, str]:
     """
     Ask the model for an action given the current observation.
-    Returns a parsed action dict. Raises RuntimeError if the model fails after retries,
-    or ValueError if the action cannot be extracted from a valid response.
+    Returns (parsed_action_dict, raw_response_text). Raises RuntimeError if the model
+    fails after retries, or ValueError if the action cannot be extracted.
     """
     user_prompt = (
         f"OBSERVATION:\n{json.dumps(obs, indent=2)}\n\n"
         "Output your reasoning and then your action in the required format."
     )
     raw = call_model(client, cfg, model, AGENT_SYSTEM_PROMPT, user_prompt, label=label)
-    return extract_action(raw)
+    return extract_action(raw), raw
 
 
 # ---------------------------------------------------------------------------
@@ -340,14 +376,15 @@ def run_episode(
         action_label = f"{label}|step={steps}"
 
         try:
-            action = get_model_action(client, cfg, model, obs, label=action_label)
+            action, raw_response = get_model_action(client, cfg, model, obs, label=action_label)
         except Exception as exc:
             log.warning("%s — could not get valid action: %s. Skipping step.", action_label, exc)
             # Don't crash the episode; count as a wasted step and continue
             continue
 
         try:
-            obs, reward, done, info = env.step(action)
+            tagged = format_action_payload(action)
+            obs, reward, done, info = step_env(env, action, raw_response or tagged)
             total_reward += reward
             log.debug("%s — reward=%.3f, done=%s", action_label, reward, done)
         except Exception as exc:
