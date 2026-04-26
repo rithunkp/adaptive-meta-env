@@ -3,18 +3,28 @@
 import os
 
 from openenv.core.env_server import create_app
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 
 try:
     from ..models import IncidentTriageAction, IncidentTriageObservation
     from .incident_triage_environment import IncidentTriageEnvironment
-    from .self_train import get_training_status, load_training_artifact, start_self_training
+    from .self_train import (
+        get_training_logs,
+        get_training_status,
+        load_training_artifact,
+        start_self_training,
+    )
 except ImportError as exc:
     if "relative import" not in str(exc) and "no known parent package" not in str(exc):
         raise
     from models import IncidentTriageAction, IncidentTriageObservation
     from server.incident_triage_environment import IncidentTriageEnvironment
-    from server.self_train import get_training_status, load_training_artifact, start_self_training
+    from server.self_train import (
+        get_training_logs,
+        get_training_status,
+        load_training_artifact,
+        start_self_training,
+    )
 
 
 def create_incident_triage_environment() -> IncidentTriageEnvironment:
@@ -49,6 +59,12 @@ def training_status() -> dict:
 def training_start() -> dict:
     """Manually trigger the self-training worker."""
     return start_self_training()
+
+
+@app.get("/training/logs")
+def training_logs(tail: int = Query(default=200, ge=1, le=2000)) -> dict:
+    """Return tail lines from trainer logs."""
+    return get_training_logs(tail=tail)
 
 
 @app.get("/training/policy")

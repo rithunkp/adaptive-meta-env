@@ -40,8 +40,23 @@ python -m incident_triage.server.app
 When deployed as a Space, background self-training starts automatically. You can inspect progress with:
 
 - `GET /training/status`
+- `GET /training/logs?tail=200`
 - `POST /training/start`
 - `GET /training/policy`
+
+The Space training worker runs this command shape by default:
+
+```powershell
+python hf_space_trainer.py `
+  --model-name meta-llama/Llama-3.1-8B-Instruct `
+  --max-steps 1000 `
+  --learning-rate 1e-5 `
+  --output-dir artifacts/grpo_main `
+  --final-model-dir artifacts/final_main `
+  --run-name openadapt-main `
+  --env-path generated_envs/incident_triage_env.py `
+  --env-class IncidentTriageEnv
+```
 
 ## Action Shape
 

@@ -1,40 +1,14 @@
-"""Background self-training loop for the incident triage Space."""
-
-from __future__ import annotations
+"""Background subprocess runner for Space self-training."""
 
 import json
 import os
-import random
+import re
+import subprocess
 import threading
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-try:
-    from ..models import IncidentTriageAction
-    from .incident_triage_environment import IncidentTriageEnvironment
-except ImportError as exc:
-    if "relative import" not in str(exc) and "no known parent package" not in str(exc):
-        raise
-    from models import IncidentTriageAction
-    from server.incident_triage_environment import IncidentTriageEnvironment
-
-
-_CANDIDATES = [
-    {
-        "root_cause": "payment_gateway_timeout",
-        "mitigation": "fail_over_payment_gateway",
-    },
-    {
-        "root_cause": "cache_replication_lag",
-        "mitigation": "invalidate_inventory_cache",
-    },
-    {
-        "root_cause": "queue_consumer_crash_loop",
-        "mitigation": "rollback_consumer_release",
-    },
-]
 
 
 @dataclass
@@ -47,174 +21,137 @@ class TrainingStatus:
     baseline_avg_reward: float | None = None
     trained_avg_reward: float | None = None
     artifact_path: str | None = None
+    log_path: str | None = None
+    command: list[str] | None = None
     error: str | None = None
+    exit_code: int | None = None
 
+
+_ROOT = Path(__file__).resolve().parents[1]
+_ARTIFACTS = _ROOT / "artifacts"
+_DEFAULT_LOG_PATH = _ARTIFACTS / "self_train.log"
+_STEP_PATTERN = re.compile(r"STEP\s+(\d+)\s*/\s*(\d+)")
 
 _status = TrainingStatus()
 _lock = threading.Lock()
 _worker: threading.Thread | None = None
+_proc: subprocess.Popen[str] | None = None
 
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _empty_service_stats() -> tuple[list[float], list[int]]:
-    return [0.0] * len(_CANDIDATES), [0] * len(_CANDIDATES)
+def _tail_lines(path: Path, limit: int) -> list[str]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        lines = handle.readlines()
+    return [line.rstrip("\n") for line in lines[-limit:]]
 
 
-def _choose_candidate(service: str, values: dict[str, list[float]], epsilon: float) -> int:
-    if service not in values:
-        values[service], _ = _empty_service_stats()
-    if random.random() < epsilon:
-        return random.randrange(len(_CANDIDATES))
-    return max(range(len(_CANDIDATES)), key=lambda i: values[service][i])
+def _trainer_command() -> tuple[list[str], Path, Path, Path]:
+    max_steps = int(os.getenv("SELF_TRAIN_MAX_STEPS", "1000"))
+    model_name = os.getenv("SELF_TRAIN_MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+    learning_rate = os.getenv("SELF_TRAIN_LEARNING_RATE", "1e-5")
+    output_dir = Path(os.getenv("SELF_TRAIN_OUTPUT_DIR", "artifacts/grpo_main"))
+    final_model_dir = Path(os.getenv("SELF_TRAIN_FINAL_MODEL_DIR", "artifacts/final_main"))
+    run_name = os.getenv("SELF_TRAIN_RUN_NAME", "openadapt-main")
+    env_path = os.getenv("SELF_TRAIN_ENV_PATH", "generated_envs/incident_triage_env.py")
+    env_class = os.getenv("SELF_TRAIN_ENV_CLASS", "IncidentTriageEnv")
+
+    cmd = [
+        "python",
+        "hf_space_trainer.py",
+        "--model-name",
+        model_name,
+        "--max-steps",
+        str(max_steps),
+        "--learning-rate",
+        str(learning_rate),
+        "--output-dir",
+        str(output_dir),
+        "--final-model-dir",
+        str(final_model_dir),
+        "--run-name",
+        run_name,
+        "--env-path",
+        env_path,
+        "--env-class",
+        env_class,
+    ]
+    return cmd, output_dir, final_model_dir, _ROOT / env_path
 
 
-def _episode_reward(eci: int, action: IncidentTriageAction, seed: int | None = None) -> float:
-    env = IncidentTriageEnvironment(eci=eci, max_steps=20)
-    obs = env.reset(seed=seed)
-    result = env.step(action)
-    return float(result.reward or 0.0), str(obs.context.get("service", "unknown"))
-
-
-def _baseline_eval(episodes: int, seed: int) -> float:
-    rewards: list[float] = []
-    for i in range(episodes):
-        random.seed(seed + i)
-        eci = 1 + (i % 5)
-        candidate = random.choice(_CANDIDATES)
-        action = IncidentTriageAction(
-            action_type="diagnose_incident",
-            params={
-                "service": "unknown",
-                **candidate,
-                "evidence": "baseline random probe",
-            },
-            confidence=0.5,
-            reasoning="Exploratory baseline action.",
-        )
-        reward, _ = _episode_reward(eci=eci, action=action, seed=seed + i)
-        rewards.append(reward)
-    return round(sum(rewards) / max(len(rewards), 1), 4)
-
-
-def _trained_eval(
-    episodes: int,
-    seed: int,
-    values: dict[str, list[float]],
-) -> float:
-    rewards: list[float] = []
-    for i in range(episodes):
-        eci = 1 + (i % 5)
-        env = IncidentTriageEnvironment(eci=eci, max_steps=20)
-        obs = env.reset(seed=seed + i)
-        service = str(obs.context.get("service", "unknown"))
-        if service not in values:
-            values[service], _ = _empty_service_stats()
-        best_idx = max(range(len(_CANDIDATES)), key=lambda j: values[service][j])
-        candidate = _CANDIDATES[best_idx]
-        action = IncidentTriageAction(
-            action_type="diagnose_incident",
-            params={
-                "service": service,
-                **candidate,
-                "evidence": "learned mapping from service patterns",
-            },
-            confidence=0.8,
-            reasoning="Selecting the best known action for this service.",
-        )
-        result = env.step(action)
-        rewards.append(float(result.reward or 0.0))
-    return round(sum(rewards) / max(len(rewards), 1), 4)
-
-
-def _run_training(episodes: int, seed: int, artifact_path: Path) -> None:
-    values: dict[str, list[float]] = {}
-    counts: dict[str, list[int]] = {}
-
-    baseline = _baseline_eval(episodes=max(10, episodes // 5), seed=seed + 5000)
+def _update_progress_from_line(line: str) -> None:
+    match = _STEP_PATTERN.search(line)
+    if not match:
+        return
+    completed = int(match.group(1))
+    total = int(match.group(2))
     with _lock:
-        _status.baseline_avg_reward = baseline
-
-    for i in range(episodes):
-        eci = 1 + (i % 5)
-        exploration = max(0.05, 0.35 * (1.0 - (i / max(episodes, 1))))
-
-        env = IncidentTriageEnvironment(eci=eci, max_steps=20)
-        obs = env.reset(seed=seed + i)
-        service = str(obs.context.get("service", "unknown"))
-        if service not in values:
-            values[service], counts[service] = _empty_service_stats()
-
-        idx = _choose_candidate(service=service, values=values, epsilon=exploration)
-        candidate = _CANDIDATES[idx]
-        action = IncidentTriageAction(
-            action_type="diagnose_incident",
-            params={
-                "service": service,
-                **candidate,
-                "evidence": "policy-gradient style explore/exploit trial",
-            },
-            confidence=0.75,
-            reasoning="Selecting an action from the current policy frontier.",
-        )
-        result = env.step(action)
-        reward = float(result.reward or 0.0)
-
-        counts[service][idx] += 1
-        n = counts[service][idx]
-        values[service][idx] += (reward - values[service][idx]) / n
-
-        with _lock:
-            _status.episodes_completed = i + 1
-
-    trained = _trained_eval(episodes=max(10, episodes // 5), seed=seed + 9000, values=values)
-
-    best_policy: dict[str, Any] = {}
-    for service, scores in values.items():
-        best_idx = max(range(len(_CANDIDATES)), key=lambda j: scores[j])
-        best_policy[service] = {
-            **_CANDIDATES[best_idx],
-            "estimated_reward": round(scores[best_idx], 4),
-            "samples": counts[service][best_idx],
-        }
-
-    artifact_path.parent.mkdir(parents=True, exist_ok=True)
-    artifact_path.write_text(
-        json.dumps(
-            {
-                "trained_at": _now_iso(),
-                "episodes": episodes,
-                "baseline_avg_reward": baseline,
-                "trained_avg_reward": trained,
-                "best_policy": best_policy,
-            },
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
-
-    with _lock:
-        _status.state = "completed"
-        _status.finished_at = _now_iso()
-        _status.trained_avg_reward = trained
-        _status.artifact_path = str(artifact_path)
+        _status.episodes_completed = completed
+        _status.episodes_total = total
 
 
-def _worker_main(episodes: int, seed: int, artifact_path: Path) -> None:
-    try:
-        _run_training(episodes=episodes, seed=seed, artifact_path=artifact_path)
-    except Exception as exc:
-        with _lock:
-            _status.state = "failed"
-            _status.finished_at = _now_iso()
-            _status.error = str(exc)
+def _worker_main(command: list[str], output_dir: Path, final_model_dir: Path, log_path: Path) -> None:
+    global _proc
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir / "summary.json"
+    policy_path = final_model_dir / "policy.json"
+    with log_path.open("w", encoding="utf-8") as log_file:
+        try:
+            _proc = subprocess.Popen(
+                command,
+                cwd=_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            assert _proc.stdout is not None
+            for line in _proc.stdout:
+                stripped = line.rstrip("\n")
+                log_file.write(stripped + "\n")
+                log_file.flush()
+                _update_progress_from_line(stripped)
+
+            exit_code = _proc.wait()
+            with _lock:
+                _status.exit_code = exit_code
+
+            if exit_code != 0:
+                with _lock:
+                    _status.state = "failed"
+                    _status.finished_at = _now_iso()
+                    _status.error = f"Trainer exited with code {exit_code}"
+                return
+
+            baseline = None
+            trained = None
+            if summary_path.exists():
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                baseline = summary.get("baseline_avg_reward")
+                trained = summary.get("trained_avg_reward")
+
+            with _lock:
+                _status.state = "completed"
+                _status.finished_at = _now_iso()
+                _status.baseline_avg_reward = baseline
+                _status.trained_avg_reward = trained
+                _status.artifact_path = str(policy_path)
+                _status.episodes_completed = _status.episodes_total
+        except Exception as exc:
+            with _lock:
+                _status.state = "failed"
+                _status.finished_at = _now_iso()
+                _status.error = str(exc)
+        finally:
+            _proc = None
 
 
 def start_self_training(force_restart: bool = False) -> dict[str, Any]:
-    """Start the background self-training worker if not already running."""
+    """Start background training using hf_space_trainer.py."""
     global _worker
     with _lock:
         is_running = _worker is not None and _worker.is_alive()
@@ -223,23 +160,34 @@ def start_self_training(force_restart: bool = False) -> dict[str, Any]:
         if is_running and force_restart:
             return asdict(_status)
 
-        episodes = int(os.getenv("SELF_TRAIN_EPISODES", "120"))
-        seed = int(os.getenv("SELF_TRAIN_SEED", "41"))
-        artifact_path = Path(os.getenv("SELF_TRAIN_ARTIFACT", "/app/env/artifacts/self_train_policy.json"))
+        command, output_dir, final_model_dir, env_path = _trainer_command()
+        if not env_path.exists():
+            _status.state = "failed"
+            _status.error = f"Environment file not found: {env_path}"
+            _status.finished_at = _now_iso()
+            return asdict(_status)
 
         _status.state = "running"
         _status.started_at = _now_iso()
         _status.finished_at = None
-        _status.episodes_total = episodes
+        _status.episodes_total = int(os.getenv("SELF_TRAIN_MAX_STEPS", "1000"))
         _status.episodes_completed = 0
         _status.baseline_avg_reward = None
         _status.trained_avg_reward = None
-        _status.artifact_path = str(artifact_path)
+        _status.artifact_path = str(final_model_dir / "policy.json")
+        _status.log_path = str(_DEFAULT_LOG_PATH)
+        _status.command = command
         _status.error = None
+        _status.exit_code = None
 
         _worker = threading.Thread(
             target=_worker_main,
-            kwargs={"episodes": episodes, "seed": seed, "artifact_path": artifact_path},
+            kwargs={
+                "command": command,
+                "output_dir": _ROOT / output_dir,
+                "final_model_dir": _ROOT / final_model_dir,
+                "log_path": _DEFAULT_LOG_PATH,
+            },
             daemon=True,
             name="incident-triage-self-train",
         )
@@ -248,20 +196,32 @@ def start_self_training(force_restart: bool = False) -> dict[str, Any]:
 
 
 def get_training_status() -> dict[str, Any]:
-    """Return the current training status."""
+    """Return current training status with running flag."""
     with _lock:
         payload = asdict(_status)
     payload["is_running"] = _worker is not None and _worker.is_alive()
     return payload
 
 
-def load_training_artifact() -> dict[str, Any] | None:
-    """Read the saved training artifact if available."""
+def get_training_logs(tail: int = 200) -> dict[str, Any]:
+    """Return tail lines from the training log file."""
+    tail = max(1, min(int(tail), 2000))
     status = get_training_status()
-    path = status.get("artifact_path")
-    if not path:
+    log_path = Path(status["log_path"]) if status.get("log_path") else _DEFAULT_LOG_PATH
+    return {
+        "log_path": str(log_path),
+        "tail": tail,
+        "lines": _tail_lines(log_path, tail),
+    }
+
+
+def load_training_artifact() -> dict[str, Any] | None:
+    """Return final trained policy artifact if present."""
+    status = get_training_status()
+    artifact_path = status.get("artifact_path")
+    if not artifact_path:
         return None
-    artifact = Path(path)
-    if not artifact.exists():
+    path = Path(artifact_path)
+    if not path.exists():
         return None
-    return json.loads(artifact.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"))
