@@ -72,7 +72,7 @@ after training: avg reward 0.895, solve rate 89.5%
 
 ## links
 
-- **Hugging Face Space**: [itzrick/openadapt](https://huggingface.co/spaces/itzrick/openadapt)
+- **Github**: [rithunkp/adaptive-meta-env](https://github.com/rithunkp/adaptive-meta-env)
 - **Colab notebook**: [openadapt-training-colab](https://colab.research.google.com/drive/1dCvCxEbe2DGjmjxTTswYko4A7Kp0o9ST?usp=sharing)
 - **Training WanDB logs**: [openadapt-training-logs](https://wandb.ai/shahirabdulnazar2003-/openenv-grpo/runs/60kg8y2c)
 
