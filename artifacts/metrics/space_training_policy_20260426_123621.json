@@ -1,0 +1,32 @@
+﻿{
+    "best_policy":  {
+                        "checkout":  {
+                                         "best_candidate":  {
+                                                                "mitigation":  "fail_over_payment_gateway",
+                                                                "root_cause":  "payment_gateway_timeout"
+                                                            },
+                                         "estimated_reward":  0.85,
+                                         "samples":  312
+                                     },
+                        "inventory":  {
+                                          "best_candidate":  {
+                                                                 "mitigation":  "invalidate_inventory_cache",
+                                                                 "root_cause":  "cache_replication_lag"
+                                                             },
+                                          "estimated_reward":  0.85,
+                                          "samples":  280
+                                      },
+                        "orders":  {
+                                       "best_candidate":  {
+                                                              "mitigation":  "rollback_consumer_release",
+                                                              "root_cause":  "queue_consumer_crash_loop"
+                                                          },
+                                       "estimated_reward":  0.85,
+                                       "samples":  292
+                                   }
+                    },
+    "learning_rate":  0.00001,
+    "max_steps":  1000,
+    "model_name":  "meta-llama/Llama-3.1-8B-Instruct",
+    "run_name":  "openadapt-main"
+}
