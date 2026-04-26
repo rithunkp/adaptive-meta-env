@@ -65,22 +65,22 @@ Tested on the **Incident Triage** environment (agent diagnoses degraded services
 ### Training Results Visualization
 
 #### Initial Model Training
-![Reward vs Step](/artifacts/initial%20model/reward_vs_step.png)
+![Reward vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/reward_vs_step.png)
 *Reward progression across training episodes. Baseline flat at ~0.42, trained policy climbs to ~0.90.*
 
-![Loss vs Step](/artifacts/initial%20model/loss_vs_step.png)
+![Loss vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/loss_vs_step.png)
 *Proxy loss (1 − reward) across episodes.*
 
-![Baseline vs Trained](/artifacts/initial%20model/baseline_vs_trained.png)
+![Baseline vs Trained](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/initial%20model/baseline_vs_trained.png)
 *Side-by-side comparison of all metrics.*
 
 #### Latest Hugging Face Space Training
 
-![Space Reward vs Step](/artifacts/hf%20space/space_reward_vs_step.png)
+![Space Reward vs Step](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_reward_vs_step.png)
 
-![Space ECI Progression](/artifacts/hf%20space/space_eci_vs_step.png)
+![Space ECI Progression](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_eci_vs_step.png)
 
-![Space Baseline vs Trained](/artifacts/hf%20space/space_baseline_vs_trained.png)
+![Space Baseline vs Trained](https://raw.githubusercontent.com/rithunkp/adaptive-meta-env/main/artifacts/hf%20space/space_baseline_vs_trained.png)
 
 ## Reproducible Commands
 
