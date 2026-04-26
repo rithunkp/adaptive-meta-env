@@ -27,6 +27,7 @@ from types import ModuleType
 from typing import Any, Callable
 
 import torch
+from transformers import TrainerCallback
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -270,7 +271,7 @@ def build_trainer(cfg: TrainConfig):
         model_name=cfg.model_name,
         max_seq_length=cfg.max_seq_length,
         load_in_4bit=True,
-        fast_inference=True,
+        fast_inference=False,
     )
 
     model = FastLanguageModel.get_peft_model(
@@ -291,7 +292,8 @@ def build_trainer(cfg: TrainConfig):
         num_generations=cfg.num_generations,
         max_steps=cfg.max_steps,
         learning_rate=cfg.learning_rate,
-        bf16=True,
+        bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
+        fp16=torch.cuda.is_available() and not torch.cuda.is_bf16_supported(),
         report_to="wandb",
         run_name=cfg.wandb_run_name,
     )
@@ -334,12 +336,13 @@ def init_wandb(cfg: TrainConfig) -> None:
 # Step counter callback
 # ---------------------------------------------------------------------------
 
-class StepCounterCallback:
+class StepCounterCallback(TrainerCallback):
     """Updates the global step counter so reward_func can do curriculum scaling."""
 
     def on_step_end(self, args, state, control, **kwargs):
         global _training_step
         _training_step = state.global_step
+        return control
 
 
 # ---------------------------------------------------------------------------
