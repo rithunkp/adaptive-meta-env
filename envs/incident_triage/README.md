@@ -1,3 +1,12 @@
+---
+title: openadapt
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 OpenAdapt: Adaptive Meta-Environment System
 
 OpenAdapt is an OpenEnv-based LLM that generates its own training environments for training agents to diagnose production services utilizing RL to progressively self-learn and improve its metrics"
