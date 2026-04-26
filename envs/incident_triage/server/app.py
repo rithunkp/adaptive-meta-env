@@ -3,15 +3,18 @@
 import os
 
 from openenv.core.env_server import create_app
+from fastapi import HTTPException
 
 try:
     from ..models import IncidentTriageAction, IncidentTriageObservation
     from .incident_triage_environment import IncidentTriageEnvironment
+    from .self_train import get_training_status, load_training_artifact, start_self_training
 except ImportError as exc:
     if "relative import" not in str(exc) and "no known parent package" not in str(exc):
         raise
     from models import IncidentTriageAction, IncidentTriageObservation
     from server.incident_triage_environment import IncidentTriageEnvironment
+    from server.self_train import get_training_status, load_training_artifact, start_self_training
 
 
 def create_incident_triage_environment() -> IncidentTriageEnvironment:
@@ -27,6 +30,34 @@ app = create_app(
     IncidentTriageObservation,
     env_name="incident_triage",
 )
+
+
+@app.on_event("startup")
+def _startup_training() -> None:
+    auto_train = os.getenv("SELF_TRAIN_ON_START", "true").strip().lower()
+    if auto_train in {"1", "true", "yes", "on"}:
+        start_self_training()
+
+
+@app.get("/training/status")
+def training_status() -> dict:
+    """Return background self-training progress for the Space UI."""
+    return get_training_status()
+
+
+@app.post("/training/start")
+def training_start() -> dict:
+    """Manually trigger the self-training worker."""
+    return start_self_training()
+
+
+@app.get("/training/policy")
+def training_policy() -> dict:
+    """Return the learned policy artifact when training is complete."""
+    artifact = load_training_artifact()
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Training artifact is not available yet.")
+    return artifact
 
 
 def main() -> None:

@@ -7,3 +7,7 @@ port: 8000
 variables:
   INCIDENT_TRIAGE_ECI: "1"
   INCIDENT_TRIAGE_MAX_STEPS: "20"
+  SELF_TRAIN_ON_START: "true"
+  SELF_TRAIN_EPISODES: "120"
+  SELF_TRAIN_SEED: "41"
+  SELF_TRAIN_ARTIFACT: "/app/env/artifacts/self_train_policy.json"

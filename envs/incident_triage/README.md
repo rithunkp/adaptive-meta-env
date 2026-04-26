@@ -37,6 +37,12 @@ Or run the server directly:
 python -m incident_triage.server.app
 ```
 
+When deployed as a Space, background self-training starts automatically. You can inspect progress with:
+
+- `GET /training/status`
+- `POST /training/start`
+- `GET /training/policy`
+
 ## Action Shape
 
 Use `IncidentTriageAction` with structured fields:
